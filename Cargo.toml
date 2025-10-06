@@ -1,0 +1,21 @@
+[package]
+name = "radix_sort"
+version = "0.1.0"
+edition = "2024"
+
+[[bench]]
+name = "compare"
+harness = false
+
+[dependencies]
+
+[dev-dependencies]
+gungraun = { version = "0.17.0", features = ["cachegrind"] }
+rand = { version = "0.9.2", default-features = false, features = [
+  "alloc",
+  "os_rng",
+  "small_rng",
+] }
+rdxsort = "0.3.0"
+
+[build-dependencies]
