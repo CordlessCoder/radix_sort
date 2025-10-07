@@ -1,6 +1,6 @@
 use gungraun::{library_benchmark, library_benchmark_group, main};
 use radix_sort::{RadixSortable, make_buf, radix_sort};
-use rand::{Rng, RngCore, SeedableRng, rngs::SmallRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use std::{cell::RefCell, hint::black_box, mem::MaybeUninit};
 
 type InputPair<T> = (Vec<T>, Vec<MaybeUninit<T>>);
@@ -25,7 +25,7 @@ thread_local! {
     static RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
 }
 fn random_u32(_: usize) -> u32 {
-    RNG.with(|r| r.borrow_mut().next_u32())
+    RNG.with(|r| r.borrow_mut().random())
 }
 fn random_i32(_: usize) -> i32 {
     RNG.with(|r| r.borrow_mut().random())
