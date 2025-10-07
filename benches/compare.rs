@@ -1,6 +1,6 @@
 use gungraun::{library_benchmark, library_benchmark_group, main};
 use radix_sort::{RadixSortable, make_buf, radix_sort};
-use rand::{RngCore, SeedableRng, rngs::SmallRng};
+use rand::{Rng, RngCore, SeedableRng, rngs::SmallRng};
 use std::{cell::RefCell, hint::black_box, mem::MaybeUninit};
 
 type InputPair<T> = (Vec<T>, Vec<MaybeUninit<T>>);
@@ -9,19 +9,36 @@ fn ascending_u32(idx: usize) -> u32 {
     idx as u32
 }
 
+fn ascending_i32(idx: usize) -> i32 {
+    idx as i32
+}
+
 fn reverse_u32(idx: usize) -> u32 {
     u32::MAX - idx as u32
 }
 
-fn random_u32(_: usize) -> u32 {
-    thread_local! {
-        static RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
-    }
-    RNG.with(|r| r.borrow_mut().next_u32())
+fn reverse_i32(idx: usize) -> i32 {
+    i32::MAX - idx as i32
 }
 
-fn with_size(size: usize) -> impl Iterator<Item = (impl FnMut(usize) -> u32, usize)> {
+thread_local! {
+    static RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
+}
+fn random_u32(_: usize) -> u32 {
+    RNG.with(|r| r.borrow_mut().next_u32())
+}
+fn random_i32(_: usize) -> i32 {
+    RNG.with(|r| r.borrow_mut().random())
+}
+
+fn u32_with_size(size: usize) -> impl Iterator<Item = (impl FnMut(usize) -> u32, usize)> {
     [ascending_u32, reverse_u32, random_u32]
+        .into_iter()
+        .map(move |cb| (cb, size))
+}
+
+fn i32_with_size(size: usize) -> impl Iterator<Item = (impl FnMut(usize) -> i32, usize)> {
+    [ascending_i32, reverse_i32, random_i32]
         .into_iter()
         .map(move |cb| (cb, size))
 }
@@ -40,39 +57,33 @@ fn gen_input<T: RadixSortable>(
 }
 
 #[library_benchmark]
-#[benches::small(
-    iter = with_size(1024),
+#[benches::small_u32(
+    iter = u32_with_size(1024),
     setup = gen_input,
     teardown = confirm_sorted
 )]
-#[benches::large(
-    iter = with_size(1024 * 64),
+#[benches::large_u32(
+    iter = u32_with_size(1024 * 64),
     setup = gen_input,
     teardown = confirm_sorted
 )]
-#[benches::huge(
-    iter = with_size(1024 * 1024 * 4),
+#[benches::huge_u32(
+    iter = u32_with_size(1024 * 1024 * 4),
     setup = gen_input,
     teardown = confirm_sorted
 )]
-fn rdxsort((mut values, buf): InputPair<u32>) -> InputPair<u32> {
-    ::rdxsort::RdxSort::rdxsort(&mut values);
-    (values, buf)
-}
-
-#[library_benchmark]
-#[benches::small(
-    iter = with_size(1024),
+#[benches::small_i32(
+    iter = i32_with_size(1024),
     setup = gen_input,
     teardown = confirm_sorted
 )]
-#[benches::large(
-    iter = with_size(1024 * 64),
+#[benches::large_i32(
+    iter = i32_with_size(1024 * 64),
     setup = gen_input,
     teardown = confirm_sorted
 )]
-#[benches::huge(
-    iter = with_size(1024 * 1024 * 4),
+#[benches::huge_i32(
+    iter = i32_with_size(1024 * 1024 * 4),
     setup = gen_input,
     teardown = confirm_sorted
 )]
@@ -82,18 +93,33 @@ fn radix<T: RadixSortable>((mut values, mut buf): InputPair<T>) -> InputPair<T> 
 }
 
 #[library_benchmark]
-#[benches::small(
-    iter = with_size(1024),
+#[benches::small_u32(
+    iter = u32_with_size(1024),
     setup = gen_input,
     teardown = confirm_sorted
 )]
-#[benches::large(
-    iter = with_size(1024 * 64),
+#[benches::large_u32(
+    iter = u32_with_size(1024 * 64),
     setup = gen_input,
     teardown = confirm_sorted
 )]
-#[benches::huge(
-    iter = with_size(1024 * 1024 * 4),
+#[benches::huge_u32(
+    iter = u32_with_size(1024 * 1024 * 4),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
+#[benches::small_i32(
+    iter = i32_with_size(1024),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
+#[benches::large_i32(
+    iter = i32_with_size(1024 * 64),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
+#[benches::huge_i32(
+    iter = i32_with_size(1024 * 1024 * 4),
     setup = gen_input,
     teardown = confirm_sorted
 )]
@@ -105,7 +131,7 @@ fn stdsort<T: RadixSortable + Ord>((mut values, buf): InputPair<T>) -> InputPair
 library_benchmark_group!(
     name = bench_sort_group;
     compare_by_id = true;
-    benchmarks = stdsort,rdxsort,radix
+    benchmarks = stdsort,radix
 );
 
 main!(library_benchmark_groups = bench_sort_group);
