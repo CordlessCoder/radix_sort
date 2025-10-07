@@ -1,10 +1,10 @@
 #![cfg_attr(not(test), no_std)]
 extern crate alloc;
 use alloc::vec::Vec;
-use core::mem::MaybeUninit;
+use core::{hint::assert_unchecked, mem::MaybeUninit};
 mod impls;
 
-const WIDTH: usize = 8;
+const WIDTH: usize = 16;
 const BUCKETS: usize = 2usize.pow(WIDTH as u32);
 
 pub trait RadixSortable: Copy + PartialOrd {
@@ -20,23 +20,31 @@ pub trait RadixSortable: Copy + PartialOrd {
 
 #[inline(always)]
 fn radix_sort_pass<const OFFSET: usize, T: RadixSortable>(
+    counters: &mut [usize; BUCKETS],
     values: &[T],
     out: &mut [MaybeUninit<T>],
 ) {
-    let mut counters: [usize; BUCKETS] = [0; BUCKETS];
+    counters.iter_mut().for_each(|c| *c = 0);
     for &value in values {
-        counters[value.offset_bits::<WIDTH>(OFFSET) & (BUCKETS - 1)] += 1;
+        let v = counters.get_mut(value.offset_bits::<WIDTH>(OFFSET) & (BUCKETS - 1));
+        unsafe {
+            *v.unwrap_unchecked() += 1;
+        }
     }
-    let mut offsets: [usize; BUCKETS] = {
-        let mut accum = 0;
-        core::array::from_fn(|i| {
-            let o = accum;
-            accum += counters[i];
-            o
-        })
-    };
+    {
+        let mut prefix = 0;
+        counters.iter_mut().for_each(|counter| {
+            let this = *counter;
+            *counter = prefix;
+            prefix += this;
+        });
+    }
+    let offsets = counters;
     for &value in values {
         let offset = &mut offsets[value.offset_bits::<WIDTH>(OFFSET) & (BUCKETS - 1)];
+        unsafe {
+            assert_unchecked(*offset < out.len());
+        }
         out[*offset] = MaybeUninit::new(value);
         *offset += 1;
     }
@@ -56,9 +64,10 @@ fn as_uninit_slice<T>(s: &mut [T]) -> &mut [MaybeUninit<T>] {
 /// The final result will be in values if ([T::BITS] / 8) % 2 == 0.
 /// It will be in buf otherwise.
 fn radix_sort_unsigned<T: RadixSortable>(values: &mut [T], buf: &mut [MaybeUninit<T>]) {
+    let mut counters: [usize; BUCKETS] = [0; BUCKETS];
     assert_eq!(values.len(), buf.len());
     if T::BITS >= WIDTH * 1 {
-        radix_sort_pass::<{ WIDTH * 0 }, T>(values, buf);
+        radix_sort_pass::<{ WIDTH * 0 }, T>(&mut counters, values, buf);
     }
     // SAFETY: Buf has been initialized by the first call to radix_sort_unsigned
     let buf: &mut [T] = unsafe { core::mem::transmute(buf) };
@@ -67,11 +76,11 @@ fn radix_sort_unsigned<T: RadixSortable>(values: &mut [T], buf: &mut [MaybeUnini
             $(
                 if $offset % 2 == 0 {
                     if T::BITS >= WIDTH * ($offset + 1) {
-                        radix_sort_pass::<{ WIDTH * $offset }, T>(values, as_uninit_slice(buf));
+                        radix_sort_pass::<{ WIDTH * $offset }, T>(&mut counters, values, as_uninit_slice(buf));
                     }
                 } else {
                     if T::BITS >= WIDTH * ($offset + 1) {
-                        radix_sort_pass::<{ WIDTH * $offset }, T>(buf, as_uninit_slice(values));
+                        radix_sort_pass::<{ WIDTH * $offset }, T>(&mut counters, buf, as_uninit_slice(values));
                     }
                 }
             )*

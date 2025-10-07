@@ -40,6 +40,16 @@ fn gen_input<T: RadixSortable>(
 }
 
 #[library_benchmark]
+#[benches::small(
+    iter = with_size(1024),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
+#[benches::large(
+    iter = with_size(1024 * 64),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
 #[benches::huge(
     iter = with_size(1024 * 1024 * 4),
     setup = gen_input,
@@ -51,6 +61,16 @@ fn rdxsort((mut values, buf): InputPair<u32>) -> InputPair<u32> {
 }
 
 #[library_benchmark]
+#[benches::small(
+    iter = with_size(1024),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
+#[benches::large(
+    iter = with_size(1024 * 64),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
 #[benches::huge(
     iter = with_size(1024 * 1024 * 4),
     setup = gen_input,
@@ -62,6 +82,16 @@ fn radix<T: RadixSortable>((mut values, mut buf): InputPair<T>) -> InputPair<T> 
 }
 
 #[library_benchmark]
+#[benches::small(
+    iter = with_size(1024),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
+#[benches::large(
+    iter = with_size(1024 * 64),
+    setup = gen_input,
+    teardown = confirm_sorted
+)]
 #[benches::huge(
     iter = with_size(1024 * 1024 * 4),
     setup = gen_input,

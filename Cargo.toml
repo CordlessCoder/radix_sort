@@ -7,6 +7,15 @@ edition = "2024"
 name = "compare"
 harness = false
 
+[profile.release]
+debug = "full"
+
+[profile.bench]
+debug = "full"
+
+[profile.test]
+debug = "full"
+
 [dependencies]
 
 [dev-dependencies]
